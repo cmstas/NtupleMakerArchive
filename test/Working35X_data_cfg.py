@@ -5,7 +5,7 @@ process = cms.Process("CMS2")
 from Configuration.EventContent.EventContent_cff import *
 
 process.configurationMetadata = cms.untracked.PSet(
-        version = cms.untracked.string('$Revision: 1.2 $'),
+        version = cms.untracked.string('$Revision: 1.1 $'),
         annotation = cms.untracked.string('CMS2'),
         name = cms.untracked.string('CMS2 test configuration')
 )
@@ -17,7 +17,7 @@ process.load("Configuration.StandardSequences.MagneticField_cff")
 process.load("Configuration.StandardSequences.FrontierConditions_GlobalTag_cff")
 process.load("TrackPropagation.SteppingHelixPropagator.SteppingHelixPropagatorAny_cfi")
 process.load("TrackingTools.TrackAssociator.DetIdAssociatorESProducer_cff")
-process.GlobalTag.globaltag = "START3X_V24::All"
+process.GlobalTag.globaltag = "GR09_R_35_V2B::All"
 
 process.options = cms.untracked.PSet(
     Rethrow = cms.untracked.vstring('ProductNotFound')
@@ -30,8 +30,7 @@ import string
 
 process.load("FWCore.MessageLogger.MessageLogger_cfi")
 process.MessageLogger.cerr.threshold = ''
-process.MessageLogger.cerr.FwkReport.reportEvery = 1000
-
+process.MessageLogger.cerr.FwkReport.reportEvery = 100
 
 
 #-------------------------------------------------
@@ -66,14 +65,14 @@ switchJetCollection(process,
 # add statement to prevent the PAT from using generator information
 from PhysicsTools.PatAlgos.tools.coreTools import *
 #uncomment for data
-#removeMCMatching(process, ['All'])
+removeMCMatching(process, ['All'])
 
 #-----------------------------------------------------------
 # configure input data files and number of event to process
 #-----------------------------------------------------------
 
 process.maxEvents = cms.untracked.PSet(
-    input = cms.untracked.int32(100)
+    input = cms.untracked.int32(-1)
 )
 process.options = cms.untracked.PSet(
     Rethrow = cms.untracked.vstring('ProductNotFound')
@@ -82,27 +81,11 @@ process.options = cms.untracked.PSet(
 process.source = cms.Source("PoolSource",
     skipEvents = cms.untracked.uint32(0),
     fileNames = cms.untracked.vstring(
-#'/store/relval/CMSSW_3_5_2_patch2/RelValZMM/GEN-SIM-RECO/START3X_V24-v1/0005/12FB2008-A624-DF11-8E75-0030487A3232.root'
-'file:12FB2008-A624-DF11-8E75-0030487A3232.root'
+'file:/home/users/jribnik/devel/minbias352.root'
     ),
 )
 
 
-process.EventSelectionSingleFilt = cms.PSet(
-    SelectEvents = cms.untracked.PSet(
-    SelectEvents = cms.vstring('pWithRecoLepton', 'pWithGenLepton')
-                )
-        )
-process.outRecoOrGenSingleFilt_CMS2 = cms.OutputModule(
-        "PoolOutputModule",
-        process.EventSelectionSingleFilt,
-        verbose = cms.untracked.bool(True),
-        dropMetaData = cms.untracked.string("NONE"),
-        fileName = cms.untracked.string('ntuple.root')
-)
-
-process.outRecoOrGenSingleFilt_CMS2.outputCommands = cms.untracked.vstring( 'drop *' )
-process.outRecoOrGenSingleFilt_CMS2.outputCommands.extend(cms.untracked.vstring('keep *_*Maker*_*_CMS2*'))
 
 
 # load event level configurations
@@ -142,22 +125,41 @@ process.RandomNumberGeneratorService.randomConeIsoMaker = cms.PSet( engineName =
 #-------------------------------------------------
 # process paths;
 #-------------------------------------------------
-process.cms2WithEverything             = cms.Sequence( process.coreCMS2Sequence
-                                                       * process.cms2GENSequence
-                                                       * process.cms2beamHaloSequence
-                                                       * process.pixelDigiMaker
-                                                       * process.patDefaultSequence * process.cms2PATSequence)
+process.cms2WithEverythingExceptGEN  = cms.Sequence(   process.coreCMS2Sequence
+                                                     * process.cms2beamHaloSequence
+                                                     * process.pixelDigiMaker
+                                                     * process.patDefaultSequence * process.cms2PATSequence)
 
 #since filtering is done in the last step, there is no reason to remove these paths
 #just comment out/remove an output which is not needed
-process.pWithRecoLepton = cms.Path(process.cms2WithEverything * process.aSkimFilter   )
-process.eventMaker.datasetName = cms.string("/RelValZMM/CMSSW_3_5_2_patch2-START3X_V24-v1/GEN-SIM-RECO")
-process.eventMaker.CMS2tag     = cms.string("blah")
-process.lepGenFilter = cms.EDFilter("LepGenFilter", nGenLepsRequired = cms.int32(1))
-process.pWithGenLepton  = cms.Path(process.cms2WithEverything * process.lepGenFilter  )
-process.eventMaker.datasetName = cms.string("/RelValZMM/CMSSW_3_5_2_patch2-START3X_V24-v1/GEN-SIM-RECO")
+#process.pWithRecoLepton      = cms.Path(process.cms2WithEverythingExceptGEN * process.aSkimFilter )
+process.pNoFilter = cms.Path(process.cms2WithEverythingExceptGEN)
+process.eventMaker.datasetName = cms.string("/MinimumBias/BeamCommissioning09-RecoTracks-Mar3rdSkim_v2/RAW-RECO")
 process.eventMaker.CMS2tag     = cms.string("blah")
 
-process.outpath         = cms.EndPath(process.outRecoOrGenSingleFilt_CMS2)
+process.EventSelectionSingleFilt = cms.PSet(
+    SelectEvents = cms.untracked.PSet(
+        SelectEvents = cms.vstring('pWithRecoLepton')
+    )
+)
+process.outRecoOrGenSingleFilt_CMS2 = cms.OutputModule(
+        "PoolOutputModule",
+        process.EventSelectionSingleFilt,
+        verbose = cms.untracked.bool(True),
+        dropMetaData = cms.untracked.string("NONE"),
+        fileName = cms.untracked.string('ntuple.root')
+)
+process.outRecoOrGenSingleFilt_CMS2.outputCommands = cms.untracked.vstring( 'drop *' )
+process.outRecoOrGenSingleFilt_CMS2.outputCommands.extend(cms.untracked.vstring('keep *_*Maker*_*_CMS2*'))
 
+process.outNoFilter_CMS2 = cms.OutputModule(
+        "PoolOutputModule",
+        verbose = cms.untracked.bool(True),
+        dropMetaData = cms.untracked.string("NONE"),
+        fileName = cms.untracked.string('ntuple.root')
+)
+process.outNoFilter_CMS2.outputCommands = cms.untracked.vstring( 'drop *' )
+process.outNoFilter_CMS2.outputCommands.extend(cms.untracked.vstring('keep *_*Maker*_*_CMS2*'))
 
+#process.outpath         = cms.EndPath(process.outRecoOrGenSingleFilt_CMS2)
+process.outpath         = cms.EndPath(process.outNoFilter_CMS2)
